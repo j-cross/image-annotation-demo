@@ -30,6 +30,13 @@ export default function Study({study}) {
   )
 }
 
+/**
+ * 
+ * @param id ID of the study to load
+ * @returns props object which contains a study object
+ * 
+ * This is a NextJS feature. It will run this code on the server side without the client ever seeing any of it.
+ */
 export async function getServerSideProps({params}) {
   const res = await fetch(`https://mka3pn0td1.execute-api.us-east-1.amazonaws.com/default/ia-patient-study-list`, {
     method: 'GET',

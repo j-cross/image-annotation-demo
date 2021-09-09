@@ -38,6 +38,10 @@ export const CornerstoneElement = (props:Props) => {
 
   const frames = props.study.frames
 
+  /**
+   * useEffect runs every time the state of the page is changed including on the initial load.
+   * Used here to initialize the Cornerstone object, setup the annotation tools, etc.
+   */
   useEffect(() => {
     if (!viewerRef.current) {
       return;
@@ -54,10 +58,11 @@ export const CornerstoneElement = (props:Props) => {
     setEventListeners();
 
     async function init() {
+      //This checks if Cornerstone has already been initialized
       if(!cornerstone.getActiveLayer(viewerRef.current)){
+        //Load the first image and then create/add a layer to the Cornerstone object with the image
         cornerstone.loadAndCacheImage(frames[0].url)
         .then((image) => {
-          console.log('update image:', image)
           cornerstone.addLayer(
             viewerRef.current,
             image,
@@ -72,14 +77,12 @@ export const CornerstoneElement = (props:Props) => {
           );
           cornerstone.updateImage(viewerRef.current);
         })
-      } else {
-        console.log('activeLayer:',cornerstone.getActiveLayer(viewerRef.current))
       }
     }
 
     function setTools() {
       if(!cornerstone.getActiveLayer(viewerRef.current)){
-        // zoom
+        // Setup the tools starting with Zoom
         const zoomTool = cornerstoneTools.ZoomTool;
         cornerstoneTools.addTool(zoomTool, {
           configuration: {
@@ -108,6 +111,9 @@ export const CornerstoneElement = (props:Props) => {
       }
     }
 
+    /**
+     * Setup an event listener for the mousedrag. Primarily, left in as a starting point for future features.
+     */
     function setEventListeners() {
       if(!cornerstone.getActiveLayer(viewerRef.current)){
         viewerRef.current.addEventListener(
@@ -126,21 +132,35 @@ export const CornerstoneElement = (props:Props) => {
     cornerstone.setViewport(viewerRef.current, viewport);
   };
 
+  /**
+   * 
+   * @param event Mouse click event
+   * Called when a different image is selected. Updates activeFrameIndex React state,
+   * resets the loadState (ie clear the annotations), and adds the new image to the layer.
+   */
   const onChangeFrame = async(event) => {
     const index = event.target.value;
+
     setActiveFrameIndex(index);
     loadState(-1);
+
     let {layerId} = cornerstone.getActiveLayer(viewerRef.current);
     let image = await cornerstone.loadAndCacheImage(frames[index].url);
-    console.log('update image:', image)
+
     cornerstone.setLayerImage(
       viewerRef.current,
       image,
       layerId
     );
+
     cornerstone.updateImage(viewerRef.current);
   };
 
+  /**
+   * 
+   * @param toolName Pan | Magnify | Angle | Length | Eraser
+   * Updates the active tool, sets all other tools to passive
+   */
   const changeTool = (toolName:string) => {
     for (let i = 0; i < leftMouseToolChain.length; i++) {
       if (leftMouseToolChain[i].name === toolName) {
@@ -159,21 +179,19 @@ export const CornerstoneElement = (props:Props) => {
     setLeftMouseTool(toolName);
   }  
 
+  /**
+   * Saves the state (ie annotations) to the DynamoDB via a POST request.
+   */
   const saveState = async() => {
     setIsSaving(true);
     const toolStateManager = cornerstoneTools.getElementToolStateManager(viewerRef.current);
-    // const ts = JSON.stringify(toolStateManager.toolState)
-    
-    // setToolState(ts);
-    // const measurementData = toolState.data;
-    // console.log('Saved state:', ts);
 
     let body = {
       "ia_demo":props.study.ia_demo,
       "frame_id":frames[activeFrameIndex].id,
       "state":toolStateManager.toolState
     }
-console.log('ts:', toolStateManager.toolState)
+
     if(!isSaving){
       try{
         const res = await fetch(`https://mka3pn0td1.execute-api.us-east-1.amazonaws.com/default/ia-patient-study-list`, {
@@ -189,7 +207,6 @@ console.log('ts:', toolStateManager.toolState)
           body: JSON.stringify(body)
         });
         setIsSaving(false);
-        console.log('Save res:', res);
       } catch(err){
         console.log('Error saving state', err);
         setIsSaving(false);
@@ -197,15 +214,18 @@ console.log('ts:', toolStateManager.toolState)
     }
   }
 
+  /**
+   * 
+   * @param index Position in the state_history array of the state to be loaded
+   * Grabs the state at the given index and calls restoreToolState to apply the annotations of that state.
+   */
   const loadState = (index) => {
     setActiveVersionIndex(index)
-    // console.log('Loading tool state...', activeFrameIndex, index);
 
     const toolStateManager = cornerstoneTools.getElementToolStateManager(viewerRef.current);
-    // console.log(frames[activeFrameIndex]['state_history'][index].state)
     toolStateManager.restoreToolState(frames[activeFrameIndex]['state_history'][index]?.state || {});
+
     cornerstone.updateImage(viewerRef.current);
-    // console.log('Tool state loaded!')
   }
 
   return (

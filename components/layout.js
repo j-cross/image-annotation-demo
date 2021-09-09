@@ -6,7 +6,7 @@ import Link from 'next/link'
 
 export const siteTitle = 'Image Annotation Demo'
 
-export default function Layout({ children, home }) {
+export default function Layout({ children, home = undefined }) {
   return (
     <div className={styles.container}>
       <Head>
